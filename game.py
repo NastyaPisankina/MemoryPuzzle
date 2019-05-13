@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 
 import os.path
 from enum import Enum
@@ -8,6 +7,7 @@ import pygame
 from pygame.locals import *
 
 from model import Model
+
 
 class GameState(Enum):
     Menu = 1
@@ -24,24 +24,40 @@ screen_size = Rect(0, 0, 1024, 850)
 difficulty_levels = [(4, 4), (5, 4), (6, 4), (6, 5), (6, 6)]
 field_size = difficulty_levels[0]
 
-main_dir = os.path.split(os.path.abspath(__file__))[0]
+folder_main = os.path.split(os.path.abspath(__file__))[0]
 
 
-def load_image(file):
+def open_sprite_multiple(paths):
+    sprites = []
+    for path in paths:
+        sprites.append(open_sprite(path))
+    return sprites
+
+
+def open_sprite(path):
     """Загрузить картинку из файла"""
-    file = os.path.join(main_dir, 'data', file)
+    path = os.path.join(folder_main, 'data', path)
     try:
-        surface = pygame.image.load(file)
+        texture = pygame.image.load(path)
     except pygame.error:
-        raise SystemExit('Could not load image "%s" %s' % (file, pygame.get_error()))
-    return surface.convert_alpha()
+        raise SystemExit('Ошибка загрузки: %s' % path)
+    return texture.convert_alpha()
 
 
-def load_images(files):
-    imgs = []
-    for file in files:
-        imgs.append(load_image(file))
-    return imgs
+class emptysound:
+    def play(self): pass
+
+
+def load_sound(path):
+    """Загрузить звук из файла"""
+    if not pygame.mixer:
+        return emptysound()
+    path = os.path.join(folder_main, 'data', path)
+    try:
+        return pygame.mixer.Sound(path)
+    except pygame.error:
+        print('Ошибка загрузки: %s' % path)
+    return emptysound()
 
 
 class Card(pygame.sprite.Sprite):
@@ -83,7 +99,7 @@ class Card(pygame.sprite.Sprite):
             if self.anim_progress > 1:
                 self.animating = 0
             elif self.anim_progress > 0.5:
-                width *= self.anim_progress * 2-1
+                width *= self.anim_progress * 2 - 1
             else:
                 width *= 1 - self.anim_progress * 2
 
@@ -96,24 +112,22 @@ class Score(pygame.sprite.Sprite):
     def __init__(self):
         pygame.sprite.Sprite.__init__(self)
         self.font = pygame.font.Font(None, 50)
-        self.color = Color('white')
-        self.lastscore = -1
+        self.prev_displayed = -10
         self.update()
-        self.rect = self.image.get_rect().move(30, 30)
+        size = self.image.get_rect()
+        self.rect = size.move(30, 30)
 
     def update(self):
-        if score != self.lastscore:
-            self.lastscore = score
-            msg = "Score: %d" % score
-            self.image = self.font.render(msg, 0, self.color)
+        if score != self.prev_displayed:
+            self.prev_displayed = score
+            msg = "счет: %d" % score
+            self.image = self.font.render(msg, 0, Color('white'))
 
 
 class Congrats(pygame.sprite.Sprite):
     def __init__(self):
         pygame.sprite.Sprite.__init__(self)
         self.font = pygame.font.Font(None, 65)
-        self.color = Color('white')
-        self.lastscore = -1
         self.set_text()
         self.rect = self.image.get_rect()
         self.rect.centerx = screen_size.centerx
@@ -122,16 +136,16 @@ class Congrats(pygame.sprite.Sprite):
     def set_text(self):
         time = pygame.time.get_ticks() - start_time
 
-        minutes = (time//1000) // 60
-        seconds = (time//1000) % 60
+        minutes = (time // 1000) // 60
+        seconds = (time // 1000) % 60
 
-        msg = "You won! Score - %s Time taken - %s:%s" % (score, minutes, seconds)
-        self.image = self.font.render(msg, 0, self.color)
+        msg = "Ты выйграл ! Счет - %s Время - %s:%s" % (score, minutes, seconds)
+        self.image = self.font.render(msg, 0, Color('white'))
 
 
 def main(winstyle=0):
     global score
-    
+
     if pygame.get_sdl_version()[0] == 2:
         pygame.mixer.pre_init(44100, 32, 2, 1024)
     pygame.init()
@@ -143,15 +157,10 @@ def main(winstyle=0):
     screen = pygame.display.set_mode(screen_size.size, winstyle, bestdepth)
 
     # Загружаем все спрайты
-    menu_sprites = load_images(['menu (' + str(x) + ').png' for x in range(1, 6)])
-    cards_sprites = load_images([str(x) + '.png' for x in range(1, 27)])
-    card_back = load_image('card_back.png')
+    menu_sprites = open_sprite_multiple(['menu (' + str(x) + ').png' for x in range(1, 6)])
+    cards_sprites = open_sprite_multiple([str(x) + '.png' for x in range(1, 27)])
+    card_back = open_sprite('card_back.png')
     random.shuffle(cards_sprites)
-
-    # Загружаем музыку, и тут же включаем
-    pygame.mixer.music.set_volume(0.2)
-    pygame.mixer.music.load("data/music.wav")
-    pygame.mixer.music.play()
 
     # Задаём параметры окна
     icon = pygame.transform.scale(card_back, (32, 32))
@@ -336,7 +345,5 @@ def create_level(card_back, cards_sprites):
 
     return cards
 
-
-# call the "main" function if running this script
 if __name__ == '__main__':
     main()
