@@ -162,6 +162,11 @@ def main(winstyle=0):
     card_back = open_sprite('card_back.png')
     random.shuffle(cards_sprites)
 
+    # Загружаем музыку, и тут же включаем
+    pygame.mixer.music.set_volume(0.2)
+    pygame.mixer.music.load("data/music.wav")
+    pygame.mixer.music.play()
+
     # Задаём параметры окна
     icon = pygame.transform.scale(card_back, (32, 32))
     pygame.display.set_icon(icon)
